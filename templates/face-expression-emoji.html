@@ -1,0 +1,140 @@
+<html>
+<head>
+    <title>Censor As per Expression</title>
+    <script src="https://stackml.com/library-js/stackml.min.js"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+</head>
+<body>
+<div class="container">
+<h1 align="center">Censor As per Expression</h1>
+<!--
+<img    style="display: block; margin: 0 auto; width: auto; height: 350px;" id='inputImage' src='static/surprise.JPG' alt="input image for face detection model prediction">
+<canvas style="display: block; margin: 0 auto; width: auto; height: 350px;" id="outputCanvas"></canvas>
+-->
+<div class="row">
+    <div class="col-md-6">
+        <img id="inputImage" style="display: block; margin: 0 auto; width: auto; height: 350px;" />
+        <br>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="custom-file">
+                    <input type="file" class="custom-file-input" id="uploadImage" name="myPhoto" onchange="PreviewImage();" />
+                    </div>
+                <script type="text/javascript">
+                    function PreviewImage() {
+                        var oFReader = new FileReader();
+                        oFReader.readAsDataURL(document.getElementById("uploadImage").files[0]);
+                        oFReader.onload = function (oFREvent) {
+                            document.getElementById("inputImage").src = oFREvent.target.result;
+                        };
+                    };
+                </script>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-primary" onclick="callStackML()">censor</button>    
+            </div>
+        </div>        
+    </div>
+    <div class="col-md-6">
+        <canvas style="display: block; margin: 0 auto; width: auto; height: 350px;" id="outputCanvas"></canvas>
+    </div>
+</div>
+
+<script>  
+    function loadImage(results) {
+        console.log(results['outputs']);
+        
+        // GET THE IMAGE.
+        var img = new Image();
+        img.src = document.getElementById("inputImage").src;
+        // WAIT TILL IMAGE IS LOADED.
+        img.onload = function () {
+            fill_canvas(img);       // FILL THE CANVAS WITH THE IMAGE.
+        }
+
+        function fill_canvas(img) {
+            // CREATE CANVAS CONTEXT.
+            var canvas = document.getElementById('outputCanvas');
+            var ctx = canvas.getContext('2d');
+
+            canvas.width = img.width;
+            canvas.height = img.height;
+
+            ctx.drawImage(img, 0, 0);
+            for(face in results['outputs']) {
+                var height = results['outputs'][face]['detection']['box']['height'];
+                var width  = results['outputs'][face]['detection']['box']['width'];
+                var x      = results['outputs'][face]['detection']['box']['x'];
+                var y      = results['outputs'][face]['detection']['box']['y'];
+                var finalExpression = "neutral";
+                var finalProbability = 0;
+                for(i in results['outputs'][face]['expressions']) {
+                    var prob  = results['outputs'][face]['expressions'][i]['probability'];
+                    if(finalProbability < prob) {
+                        finalProbability = prob;
+                        finalExpression = results['outputs'][face]['expressions'][i]['expression'];
+                    }
+                }
+                var emoji;
+                switch (finalExpression) {
+                    case "neutral":
+                        emoji = "😐";
+                        break;
+                    case "happy":
+                        emoji = "😀";
+                        break;
+                    case "sad":
+                        emoji = "😞";
+                        break;
+                    case "angry":
+                        emoji = "😠";
+                        break;
+                    case "fearful":
+                        emoji = "😨";
+                        break;
+                    case "disgusted":
+                        emoji = "🤢";
+                        break;
+                    case "surprised":
+                        emoji = "😲";
+                        break;
+                }
+                ctx.font = height + "px serif";
+                ctx.textBaseline = "hanging";
+                ctx.textAlign = "left";
+                ctx.fillText(emoji, x, y, width);
+            }          
+        }
+    
+    }
+
+    //callStackML();
+
+    async function callStackML() {
+        //provide the access key
+        await stackml.init({'accessKeyId': '<YOUR ACCESS KEY>'});
+        console.log("init");
+        
+        const model = await stackml.faceExpression(callbackLoad);
+
+        // make prediction with the image
+        model.detect(document.getElementById('inputImage'), callbackPredict);
+
+        function callbackLoad() {
+            console.log('callback after face expression model is loaded!');
+        }
+
+        // callback after prediction
+        function callbackPredict(err, results) {
+            console.log(results);
+            loadImage(results);
+        }
+        console.log("Completed");
+    }
+</script>
+</div>
+</body>
+</html>
